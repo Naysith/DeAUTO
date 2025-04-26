@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 #konek ke databes
 conn = sqlite3.connect('databaseDeAuto.db')
@@ -371,3 +371,258 @@ def hapus_stok_kendaraan():
         print("❌ Penghapusan dibatalkan.")
 
 #////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#function CRUD table unit
+
+#create = tambah_unit_kendaraan()
+def tambah_unit_kendaraan():
+    tampilkan_jenis_kendaraan()
+    id_jenis = input("Masukkan ID jenis kendaraan: ").strip()
+    plat_nomor = input("Masukkan plat nomor: ").upper().strip()
+    tanggal_masuk = datetime.now().strftime("%Y-%m-%d")
+    
+    try:
+        c.execute("""
+            INSERT INTO unit_kendaraan (id_jenis, plat_nomor, tanggal_masuk)
+            VALUES (?, ?, ?)
+        """, (id_jenis, plat_nomor, tanggal_masuk))
+        conn.commit()
+        print("✅ Unit kendaraan berhasil ditambahkan!")
+    except sqlite3.IntegrityError:
+        print("❌ Plat nomor sudah digunakan!")
+    except Exception as e:
+        print("❌ Gagal menambahkan unit:", e)
+
+#read = tampilkan_unit_kendaraan()
+def tampilkan_unit_kendaraan():
+    c.execute("""
+        SELECT unit.id_unit, jenis.nama_jenis, unit.plat_nomor, unit.status, unit.tanggal_masuk
+        FROM unit_kendaraan unit
+        JOIN jenis_kendaraan jenis ON unit.id_jenis = jenis.id_jenis
+    """)
+    data = c.fetchall()
+
+    if not data:
+        print(" Belum ada unit kendaraan.")
+        return
+
+    print("\n Daftar Unit Kendaraan:")
+    print("-" * 60)
+    for row in data:
+        print(f"ID: {row[0]} | Jenis: {row[1]} | Plat: {row[2]} | Status: {row[3]} | Masuk: {row[4]}")
+    print("-" * 60)
+
+#update = update_unit_kendaraan()
+def update_unit_kendaraan():
+    tampilkan_unit_kendaraan()
+    id_unit = input("Masukkan ID unit yang ingin diupdate: ")
+
+    c.execute("SELECT * FROM unit_kendaraan WHERE id_unit = ?", (id_unit,))
+    unit = c.fetchone()
+
+    if not unit:
+        print("❌ Unit tidak ditemukan.")
+        return
+
+    plat_baru = input(f"Plat baru [{unit[2]}]: ").upper() or unit[2]
+    status_baru = input(f"Status baru (tersedia/disewa/maintenance) [{unit[3]}]: ").lower() or unit[3]
+
+    if status_baru not in ['tersedia', 'disewa', 'maintenance']:
+        print("❌ Status tidak valid.")
+        return
+
+    c.execute("""
+        UPDATE unit_kendaraan
+        SET plat_nomor = ?, status = ?
+        WHERE id_unit = ?
+    """, (plat_baru, status_baru, id_unit))
+    conn.commit()
+    print("✅ Data unit kendaraan berhasil diperbarui.")
+
+#delete = hapus_stok_kendaraan()
+def hapus_unit_kendaraan():
+    tampilkan_unit_kendaraan()
+    id_unit = input("Masukkan ID unit yang ingin dihapus: ")
+
+    c.execute("SELECT * FROM unit_kendaraan WHERE id_unit = ?", (id_unit,))
+    unit = c.fetchone()
+
+    if not unit:
+        print("❌ Unit tidak ditemukan.")
+        return
+
+    confirm = input(f"Yakin ingin menghapus unit dengan plat {unit[2]}? (y/n): ").lower()
+    if confirm == 'y':
+        c.execute("DELETE FROM unit_kendaraan WHERE id_unit = ?", (id_unit,))
+        conn.commit()
+        print("✅ Unit kendaraan berhasil dihapus.")
+    else:
+        print("❌ Penghapusan dibatalkan.")
+
+#////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#function CRUD table transaksi
+
+#create = tambah_transaksi()
+def tambah_transaksi():
+    print("\n🆕 Tambah Transaksi Baru")
+
+    c.execute("""
+        SELECT unit.id_unit, unit.plat_nomor, jenis.nama_jenis, jenis.harga_sewa
+        FROM unit_kendaraan unit
+        JOIN jenis_kendaraan jenis ON unit.id_jenis = jenis.id_jenis
+        WHERE unit.status = 'tersedia'
+    """)
+    units = c.fetchall()
+
+    if not units:
+        print("❌ Tidak ada unit kendaraan tersedia.")
+        return
+
+    print("\n📋 Unit Kendaraan Tersedia:")
+    for unit in units:
+        print(f"ID: {unit[0]} | Plat: {unit[1]} | Nama Jenis: {unit[2]} | Harga Sewa: Rp{unit[3]:,}")
+
+    id_unit = input("Masukkan ID unit yang disewa: ")
+
+    # Cari harga sewa dan nama mobil dari ID yang dipilih
+    selected_unit = None
+    for unit in units:
+        if str(unit[0]) == id_unit:
+            selected_unit = unit
+            break
+
+    if not selected_unit:
+        print("❌ ID unit tidak valid.")
+        return
+
+    nama = input("Masukkan nama penyewa: ").strip()
+    alamat = input("Masukkan alamat penyewa: ").strip()
+    jumlah_unit = 1  # Biasanya 1 mobil per transaksi
+
+    # Ambil tanggal sekarang
+    tanggal_sewa = datetime.now()
+    tanggal_sewa_str = tanggal_sewa.strftime("%Y-%m-%d %H:%M:%S")
+
+    # User input berapa hari sewa
+    durasi_sewa_hari = int(input("Masukkan durasi sewa (berapa hari): "))
+    tanggal_rencana_kembali = tanggal_sewa + timedelta(days=durasi_sewa_hari)
+    tanggal_rencana_kembali_str = tanggal_rencana_kembali.strftime("%Y-%m-%d 23:59:59")
+
+    # Deposit = harga sewa
+    harga_sewa = selected_unit[3]
+    deposit = harga_sewa
+
+    try:
+        c.execute("""
+            INSERT INTO transaksi (
+                id_unit, nama_penyewa, alamat_penyewa, jumlah_unit,
+                tanggal_sewa, tanggal_rencana_kembali,
+                deposit, status_transaksi
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'disewa')
+        """, (id_unit, nama, alamat, jumlah_unit, tanggal_sewa_str, tanggal_rencana_kembali_str, deposit))
+
+        c.execute("UPDATE unit_kendaraan SET status = 'disewa' WHERE id_unit = ?", (id_unit,))
+
+        conn.commit()
+        print(f"✅ Transaksi berhasil dibuat! Sewa selama {durasi_sewa_hari} hari. Deposit: Rp{deposit:,}")
+    except Exception as e:
+        print("❌ Gagal membuat transaksi:", e)
+
+#read = tampilkan_unit_kendaraan()
+def tampilkan_transaksi():
+    c.execute("""
+        SELECT transaksi.id_transaksi, unit.plat_nomor, transaksi.nama_penyewa, transaksi.tanggal_sewa, transaksi.tanggal_rencana_kembali, transaksi.status_transaksi
+        FROM transaksi
+        JOIN unit_kendaraan unit ON transaksi.id_unit = unit.id_unit
+    """)
+    data = c.fetchall()
+
+    if not data:
+        print("📭 Tidak ada transaksi tercatat.")
+        return
+
+    print("\n📋 Daftar Transaksi:")
+    print("-" * 70)
+    for row in data:
+        print(f"ID: {row[0]} | Plat: {row[1]} | Penyewa: {row[2]}")
+        print(f"  Tgl Sewa: {row[3]} | Tgl Kembali Rencana: {row[4]} | Status: {row[5]}")
+    print("-" * 70)
+
+#update = proses_pengembalian()
+def proses_pengembalian():
+    tampilkan_transaksi()
+    id_transaksi = input("Masukkan ID transaksi yang akan diproses pengembalian: ")
+
+    # Get transaction info
+    c.execute("""
+        SELECT transaksi.*, unit.plat_nomor, unit.id_jenis
+        FROM transaksi
+        JOIN unit_kendaraan unit ON transaksi.id_unit = unit.id_unit
+        WHERE transaksi.id_transaksi = ?
+    """, (id_transaksi,))
+    transaksi = c.fetchone()
+
+    if not transaksi:
+        print("❌ Transaksi tidak ditemukan.")
+        return
+
+    if transaksi[11] == 'dikembalikan':
+        print("⚠️ Transaksi ini sudah dikembalikan sebelumnya.")
+        return
+
+    tanggal_rencana_kembali = datetime.strptime(transaksi[6], "%Y-%m-%d %H:%M:%S")
+    tanggal_kembali = datetime.now()
+
+    # Hitung keterlambatan
+    terlambat = (tanggal_kembali - tanggal_rencana_kembali).days
+    if terlambat > 0:
+        denda = terlambat * 50000  # Rp50,000 per hari telat
+    else:
+        denda = 0
+
+    # Fetch harga sewa per unit (ambil dari jenis_kendaraan)
+    id_jenis = transaksi[13]  # id_jenis from unit_kendaraan
+    c.execute("SELECT harga_sewa FROM jenis_kendaraan WHERE id_jenis = ?", (id_jenis,))
+    harga_sewa_row = c.fetchone()
+    if not harga_sewa_row:
+        print("❌ Harga sewa tidak ditemukan!")
+        return
+
+    harga_sewa_per_unit = harga_sewa_row[0]
+
+    # Calculate total bayar
+    deposit = transaksi[8]
+    total_bayar = (harga_sewa_per_unit + denda) - deposit
+
+    # Update transaksi
+    c.execute("""
+        UPDATE transaksi
+        SET tanggal_kembali = ?, denda = ?, total_bayar_akhir = ?, status_transaksi = 'dikembalikan'
+        WHERE id_transaksi = ?
+    """, (tanggal_kembali.strftime("%Y-%m-%d %H:%M:%S"), denda, total_bayar, id_transaksi))
+
+    # Update unit kendaraan menjadi tersedia lagi
+    c.execute("UPDATE unit_kendaraan SET status = 'tersedia' WHERE id_unit = ?", (transaksi[1],))
+
+    conn.commit()
+    print(f"✅ Pengembalian berhasil. Denda: Rp{denda:,}")
+
+#delete = hapus_transaksi()
+def hapus_transaksi():
+    tampilkan_transaksi()
+    id_transaksi = input("Masukkan ID transaksi yang ingin dihapus: ")
+
+    c.execute("SELECT * FROM transaksi WHERE id_transaksi = ?", (id_transaksi,))
+    transaksi = c.fetchone()
+
+    if not transaksi:
+        print("❌ Transaksi tidak ditemukan.")
+        return
+
+    confirm = input("Yakin ingin menghapus transaksi ini? (y/n): ").lower()
+    if confirm == 'y':
+        c.execute("DELETE FROM transaksi WHERE id_transaksi = ?", (id_transaksi,))
+        conn.commit()
+        print("✅ Transaksi berhasil dihapus.")
+    else:
+        print("❌ Penghapusan dibatalkan.")
