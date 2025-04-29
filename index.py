@@ -29,7 +29,9 @@ def dashboard_admin():
         print("1. CRUD Jenis Kendaraan")
         print("2. Input Stok Kendaraan")
         print("3. Pecah Stok menjadi Unit Kendaraan")
-        print("4. Logout")
+        print("4. Menu Transaksi")
+        print("5. Menu Edit akun user")
+        print("6. Logout")
         pilihan = input("Pilih menu: ")
 
         if pilihan == '1':
@@ -39,6 +41,10 @@ def dashboard_admin():
         elif pilihan == '3':
             menu_unit_kendaraan()
         elif pilihan == '4':
+            menu_transaksi()
+        elif pilihan == '5':
+            menu_edit_akun()
+        elif pilihan == '6':
             print("\n🚪 Logout berhasil.")
             break
         else:
@@ -87,6 +93,31 @@ def menu_jenis_kendaraan():
             table.update_jenis_kendaraan()
         elif pilihan == '4':
             table.hapus_jenis_kendaraan()
+        elif pilihan == '5':
+            break
+        else:
+            print("❌ Pilihan tidak valid.")
+
+
+# ==== MENU CRUD AKUN USER ====
+def menu_edit_akun():
+    while True:
+        print("\n===== MENU EDIT AKUN =====")
+        print("1. Tambah Akun")
+        print("2. Tampilkan List Akun")
+        print("3. Update Akun")
+        print("4. Hapus Akun")
+        print("5. Kembali")
+        pilihan = input("Pilih menu: ")
+
+        if pilihan == '1':
+            table.tambah_user()
+        elif pilihan == '2':
+            table.tampilkan_user()
+        elif pilihan == '3':
+            table.update_user()
+        elif pilihan == '4':
+            table.hapus_user()
         elif pilihan == '5':
             break
         else:
@@ -142,6 +173,30 @@ def menu_unit_kendaraan():
         else:
             print("❌ Pilihan tidak valid.")
 
+# ==== MENU TRANSAKSI ====
+def menu_transaksi():
+    while True:
+        print("\n===== MENU TRANSAKSI =====")
+        print("1. Tambah Transaksi Penyewaan")
+        print("2. Tampilkan Semua Transaksi")
+        print("3. Proses Pengembalian Kendaraan")
+        print("4. Hapus Transaksi")
+        print("5. Kembali")
+        pilihan = input("Pilih menu: ")
+
+        if pilihan == '1':
+            table.tambah_transaksi()
+        elif pilihan == '2':
+            table.tampilkan_transaksi()
+        elif pilihan == '3':
+            table.proses_pengembalian()
+        elif pilihan == '4':
+            table.hapus_transaksi()
+        elif pilihan == '5':
+            break
+        else:
+            print("❌ Pilihan tidak valid.")
+
 
 # ==== MENU LAPORAN ADMIN ====
 def menu_laporan():
@@ -167,4 +222,5 @@ def menu_laporan():
 
 # ==== START PROGRAM ====
 if __name__ == "__main__":
-    login()
+    while True:
+        login()

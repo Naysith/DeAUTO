@@ -210,15 +210,28 @@ def tambah_jenis_kendaraan():
     kursi = int(input("Masukkan jumlah kursi: "))
     harga = int(input("Masukkan harga sewa per hari: "))
 
+    #Check kalo ada data yang sama
     try:
         c.execute("""
-            INSERT INTO jenis_kendaraan (nama_jenis, tahun, warna_default, jumlah_kursi, harga_sewa)
-            VALUES (?, ?, ?, ?, ?)
+            SELECT COUNT(*) FROM jenis_kendaraan 
+            WHERE nama_jenis = ? AND tahun = ? AND warna_default = ? AND jumlah_kursi = ? AND harga_sewa = ?
         """, (nama, tahun, warna, kursi, harga))
-        conn.commit()
-        print("✅ Jenis kendaraan berhasil ditambahkan!")
+        result = c.fetchone()
+
+        if result[0] > 0:
+            print("❌ Gagal menambahkan jenis kendaraan: Data yang dimasukkan sudah ada.")
+        else:
+            # Insert the new vehicle data if it's not a duplicate
+            c.execute("""
+                INSERT INTO jenis_kendaraan (nama_jenis, tahun, warna_default, jumlah_kursi, harga_sewa) 
+                VALUES (?, ?, ?, ?, ?)
+            """, (nama, tahun, warna, kursi, harga))
+            conn.commit()
+            print("✅ Jenis kendaraan berhasil ditambahkan!")
+    
     except Exception as e:
         print("❌ Gagal menambahkan jenis kendaraan:", e)
+
 
 #read = tampilkan_jenis_kendaraan()
 def tampilkan_jenis_kendaraan():
@@ -626,3 +639,47 @@ def hapus_transaksi():
         print("✅ Transaksi berhasil dihapus.")
     else:
         print("❌ Penghapusan dibatalkan.")
+
+#////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#function Laporan transaksi
+
+#total dari semua transaksi yang di table transaksi
+def laporan_total_omset():
+    print("\n===== LAPORAN TOTAL OMSET =====")
+    c.execute("""
+        SELECT SUM(total_bayar_akhir) FROM transaksi
+        WHERE status_transaksi = 'dikembalikan'
+    """)
+    result = c.fetchone()
+    total = result[0] if result[0] is not None else 0
+    print(f"💰 Total Omset dari semua transaksi: Rp{total:,}")
+
+#total semua sewa yang pernah terjadi
+def laporan_jumlah_unit_disewa():
+    print("\n===== LAPORAN JUMLAH UNIT DISEWA =====")
+    c.execute("""
+        SELECT COUNT(*) FROM transaksi
+        WHERE status_transaksi IN ('disewa', 'dikembalikan')
+    """)
+    result = c.fetchone()
+    jumlah = result[0] if result[0] is not None else 0
+    print(f"🚗 Total unit kendaraan pernah disewa: {jumlah}")
+
+#Cek total kendara di sewa per jenis kemudian di order paling banyak disewa kemudian tampilkan paling atas
+def laporan_jenis_paling_laris():
+    print("\n===== JENIS KENDARAAN PALING LARIS =====")
+    c.execute("""
+        SELECT jk.nama_jenis, COUNT(*) AS total_disewa
+        FROM transaksi t
+        JOIN unit_kendaraan uk ON t.id_unit = uk.id_unit
+        JOIN jenis_kendaraan jk ON uk.id_jenis = jk.id_jenis
+        WHERE t.status_transaksi IN ('disewa', 'dikembalikan')
+        GROUP BY jk.nama_jenis
+        ORDER BY total_disewa DESC
+        LIMIT 1
+    """)
+    result = c.fetchone()
+    if result:
+        print(f"🏅 Jenis Kendaraan Paling Laris: {result[0]} (Total disewa: {result[1]} kali)")
+    else:
+        print("❌ Belum ada data transaksi.")
