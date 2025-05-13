@@ -567,7 +567,7 @@ def proses_pengembalian():
     tampilkan_transaksi()
     id_transaksi = input("Masukkan ID transaksi yang akan diproses pengembalian: ")
 
-    # Get transaction info
+    # Get transaction info with plat & id_jenis
     c.execute("""
         SELECT transaksi.*, unit.plat_nomor, unit.id_jenis
         FROM transaksi
@@ -585,56 +585,53 @@ def proses_pengembalian():
         return
 
     tanggal_rencana_kembali = datetime.strptime(transaksi[6], "%Y-%m-%d %H:%M:%S")
+    tanggal_sewa = datetime.strptime(transaksi[5], "%Y-%m-%d %H:%M:%S")
     tanggal_kembali = datetime.now()
 
     # Hitung keterlambatan
-    terlambat = (tanggal_kembali - tanggal_rencana_kembali).days
-    if terlambat > 0:
-        denda = terlambat * 50000  # Rp50,000 per hari telat
-    else:
-        denda = 0
+    terlambat = (tanggal_kembali.date() - tanggal_rencana_kembali.date()).days
+    denda = max(terlambat, 0) * 50000
 
-    # Fetch harga sewa per unit (ambil dari jenis_kendaraan)
-    id_jenis = transaksi[13]  # id_jenis from unit_kendaraan
+    # Ambil harga sewa dari jenis_kendaraan
+    id_jenis = transaksi[13]
     c.execute("SELECT harga_sewa FROM jenis_kendaraan WHERE id_jenis = ?", (id_jenis,))
-    harga_sewa_row = c.fetchone()
-    if not harga_sewa_row:
+    harga_row = c.fetchone()
+    if not harga_row:
         print("❌ Harga sewa tidak ditemukan!")
         return
 
-    harga_sewa_per_unit = harga_sewa_row[0]
+    harga_sewa_per_unit = harga_row[0]
 
-    # Calculate total bayar
+    # Hitung durasi sewa dan total bayar
+    durasi_hari = (tanggal_rencana_kembali.date() - tanggal_sewa.date()).days + 1
+    total_sewa = harga_sewa_per_unit * durasi_hari
     deposit = transaksi[8]
-    tanggal_sewa = datetime.strptime(transaksi[5], "%Y-%m-%d %H:%M:%S")
-    durasi_sewa = (tanggal_kembali.date() - tanggal_sewa.date()).days + 1
-    total_sewa = harga_sewa_per_unit * durasi_sewa
     total_bayar = total_sewa + denda - deposit
 
-
-    # Update transaksi
+    # Update transaksi & unit
     c.execute("""
         UPDATE transaksi
         SET tanggal_kembali = ?, denda = ?, total_bayar_akhir = ?, status_transaksi = 'dikembalikan'
         WHERE id_transaksi = ?
     """, (tanggal_kembali.strftime("%Y-%m-%d %H:%M:%S"), denda, total_bayar, id_transaksi))
 
-    # Update unit kendaraan menjadi tersedia lagi
     c.execute("UPDATE unit_kendaraan SET status = 'tersedia' WHERE id_unit = ?", (transaksi[1],))
 
     conn.commit()
+
     print(f"✅ Pengembalian berhasil. Denda: Rp{denda:,}")
 
+    # Cetak struk otomatis
     cetak_struk_baru({
-    "id_transaksi": id_transaksi,
-    "plat_nomor": transaksi[14],
-    "nama_penyewa": transaksi[2],
-    "alamat_penyewa": transaksi[3],
-    "tanggal_sewa": transaksi[5],
-    "tanggal_kembali": tanggal_kembali.strftime("%Y-%m-%d %H:%M:%S"),
-    "harga_sewa_per_hari": harga_sewa_per_unit,
-    "deposit": deposit,
-    "total_bayar_akhir": total_bayar
+        "id_transaksi": transaksi[0],
+        "plat_nomor": transaksi[12],
+        "nama_penyewa": transaksi[2],
+        "alamat_penyewa": transaksi[3],
+        "tanggal_sewa": transaksi[5],
+        "tanggal_kembali": tanggal_kembali.strftime("%Y-%m-%d %H:%M:%S"),
+        "harga_sewa_per_hari": harga_sewa_per_unit,
+        "deposit": deposit,
+        "total_bayar_akhir": total_bayar
     })
 
 #delete = hapus_transaksi()
