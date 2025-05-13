@@ -1,5 +1,6 @@
 import sqlite3
 from datetime import datetime, timedelta
+from print_baru import cetak_struk_baru
 
 #konek ke databes
 conn = sqlite3.connect('databaseDeAuto.db')
@@ -605,7 +606,11 @@ def proses_pengembalian():
 
     # Calculate total bayar
     deposit = transaksi[8]
-    total_bayar = (harga_sewa_per_unit + denda) - deposit
+    tanggal_sewa = datetime.strptime(transaksi[5], "%Y-%m-%d %H:%M:%S")
+    durasi_sewa = (tanggal_kembali.date() - tanggal_sewa.date()).days + 1
+    total_sewa = harga_sewa_per_unit * durasi_sewa
+    total_bayar = total_sewa + denda - deposit
+
 
     # Update transaksi
     c.execute("""
@@ -619,6 +624,18 @@ def proses_pengembalian():
 
     conn.commit()
     print(f"✅ Pengembalian berhasil. Denda: Rp{denda:,}")
+
+    cetak_struk_baru({
+    "id_transaksi": id_transaksi,
+    "plat_nomor": transaksi[14],
+    "nama_penyewa": transaksi[2],
+    "alamat_penyewa": transaksi[3],
+    "tanggal_sewa": transaksi[5],
+    "tanggal_kembali": tanggal_kembali.strftime("%Y-%m-%d %H:%M:%S"),
+    "harga_sewa_per_hari": harga_sewa_per_unit,
+    "deposit": deposit,
+    "total_bayar_akhir": total_bayar
+    })
 
 #delete = hapus_transaksi()
 def hapus_transaksi():

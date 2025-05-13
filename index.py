@@ -1,4 +1,7 @@
 import table  # Import semua function dari table.py (CRUD)
+import fpdf
+from fpdf import FPDF
+from print_baru import cetak_struk_baru
 
 # ==== LOGIN SYSTEM ====
 def login():
@@ -81,7 +84,8 @@ def dashboard_staff():
         print("1. Transaksi Penyewaan")
         print("2. Transaksi Pengembalian")
         print("3. Laporan")
-        print("4. Logout")
+        print("4. Cetak Struk Transaksi Sebelumnya")
+        print("5. Logout")
         pilihan = input("Pilih menu: ")
 
         if pilihan == '1':
@@ -91,6 +95,8 @@ def dashboard_staff():
         elif pilihan == '3':
             menu_laporan()
         elif pilihan == '4':
+            menu_cetak_struk()
+        elif pilihan == '5':
             print("\n🚪 Logout berhasil.")
             break
         else:
@@ -216,6 +222,75 @@ def menu_transaksi():
         elif pilihan == '4':
             table.hapus_transaksi()
         elif pilihan == '5':
+            break
+        else:
+            print("❌ Pilihan tidak valid.")
+
+# ==== MENU PRINT ====
+def menu_cetak_struk():
+    while True:
+        print("\n===== MENU CETAK STRUK =====")
+        print("1. Cetak Struk Transaksi Sebelumnya")
+        print("2. Kembali")
+        pilihan = input("Pilih menu: ")
+
+        if pilihan == '1':
+            # Tampilkan transaksi yang sudah dikembalikan
+            table.c.execute("""
+                SELECT t.id_transaksi, u.plat_nomor, t.nama_penyewa, t.tanggal_kembali
+                FROM transaksi t
+                JOIN unit_kendaraan u ON t.id_unit = u.id_unit
+                WHERE t.status_transaksi = 'dikembalikan'
+                ORDER BY t.tanggal_kembali DESC
+                                                                                                            """)
+            records = table.c.fetchall()
+
+            if not records:
+                print("📭 Belum ada transaksi yang dikembalikan.")
+                continue
+
+            print("\n📋 Transaksi Selesai:")
+            print("-" * 50)
+            for r in records:
+                print(f"ID: {r[0]} | Plat: {r[1]} | Penyewa: {r[2]} | Kembali: {r[3]}")
+            print("-" * 50)
+
+            # Minta input ID
+            id_transaksi = input("Masukkan ID Transaksi yang ingin dicetak: ")
+
+            # Fetch full transaction data by ID
+            table.c.execute("""
+                SELECT t.id_transaksi, u.plat_nomor, t.nama_penyewa, t.alamat_penyewa,
+                       t.tanggal_sewa, t.tanggal_kembali, t.deposit, t.total_bayar_akhir,
+                       u.id_jenis
+                FROM transaksi t
+                JOIN unit_kendaraan u ON t.id_unit = u.id_unit
+                WHERE t.id_transaksi = ? AND t.status_transaksi = 'dikembalikan'
+            """, (id_transaksi,))
+            data = table.c.fetchone()
+            
+            if not data:
+                print("❌ Transaksi tidak ditemukan atau belum dikembalikan.")
+                continue
+
+            # Get harga sewa per hari
+            table.c.execute("SELECT harga_sewa FROM jenis_kendaraan WHERE id_jenis = ?", (data[8],))
+            harga_row = table.c.fetchone()
+            harga_sewa = harga_row[0] if harga_row else 0
+
+            cetak_struk_baru({
+                "id_transaksi": data[0],
+                "plat_nomor": data[1],
+                "nama_penyewa": data[2],
+                "alamat_penyewa": data[3],
+                "tanggal_sewa": data[4],
+                "tanggal_kembali": data[5],
+                "harga_sewa_per_hari": harga_sewa,
+                "deposit": data[6],     
+                "total_bayar_akhir": data[7]
+            })
+
+        elif pilihan == '2':
             break
         else:
             print("❌ Pilihan tidak valid.")
