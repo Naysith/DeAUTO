@@ -55,6 +55,6 @@ Program ini dikembangkan menggunakan pola arsitektur OOP (Object-Oriented Progra
 
 ## Masalah atau Pertanyaan?
 Jika anda mengalami masalah atau membutuhkan bantuan lebih lanjut, silakan hubungi email berikut:  
-[example@gmail.com](mailto:example@gmail.com)
+[NicholasRomanov51@gmail.com](mailto:NicholasRomanov51@gmail.com)
 
 ---
